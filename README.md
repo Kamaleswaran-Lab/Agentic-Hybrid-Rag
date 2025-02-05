@@ -19,7 +19,6 @@ Users can **upload PDF/CSV documents** or a **pre-vectorized file**, then **ask 
 - **Caching**: Saves the built index as a `.pkl` file so you can reload it without re-indexing.
 - **Interactive Streamlit UI**: Chat messages appear in a neat conversation-style interface, with a text input to query.
 
-![](Demo.gif)
 ---
 ![](Demo.gif)
 
