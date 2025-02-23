@@ -4,51 +4,57 @@ import re
 
 def get_validated_input():
     """
-    Prompts the user for a query, query type, max results, and threshold, ensuring all inputs are valid.
-
-    Parameters:
-    None. The function directly prompts the user for inputs.
-
-    How to use:
-    - Simply call `get_validated_input()` in your program. It will ask for the four inputs sequentially, validating each one.
+    Prompts the user for a query, date range in YYYY-YYYY format, max results and a threshold, ensuring all inputs are valid.
 
     Output:
-    - Returns a tuple containing the four validated values:
+    - Returns a tuple containing the validated values:
       - `query` (str)
-      - `query_type` (bool)
+      - `date_range` (tuple of str or None)
       - `max_results` (int)
       - `threshold` (float)
     """
     # Ensure the query is not empty
     while True:
-        query = input("Insert query: ").strip()  # Prompt the user for the query input
-        if query:  # If the query is not empty, break the loop
+        query = input("Insert query: ").strip()
+        if query:
             break
-        print("Query cannot be empty. Please enter a valid query.")  # Error message for empty query
+        print("Query cannot be empty. Please enter a valid query.")
+
+    # Validate date range (YYYY-YYYY) and ensure the start year is less than or equal to the end year
+    while True:
+        date_range = input("Enter the date range (YYYY-YYYY): ").strip()
+        if "-" in date_range:
+            years = date_range.split("-")
+            if len(years) == 2 and years[0].isdigit() and years[1].isdigit():
+                year_low, year_high = int(years[0]), int(years[1])
+                if year_low <= year_high:
+                    break
+
+        print("Invalid format. Please enter the date range in YYYY-YYYY format with a valid range (e.g., 2000-2023).")
 
     # Validate max_results (integer)
     while True:
         try:
-            max_results = int(input("How many should each database retrieve: ").strip())  # Prompt for max_results input
-            if max_results > 0:  # Check if max_results is a positive integer
+            max_results = int(input("How many should each database retrieve: ").strip())
+            if max_results > 0:
                 break
             else:
-                print("Please enter a positive integer.")  # Error message for non-positive integers
-        except ValueError:  # If the input is not an integer, raise an error
-            print("Invalid input. Please enter a valid integer.")  # Error message for invalid integer input
+                print("Please enter a positive integer.")
+        except ValueError:
+            print("Invalid input. Please enter a valid integer.")
 
     # Validate threshold (float between 0 and 1)
     while True:
         try:
-            threshold = float(input("What should be the threshold similarity score (0-1): ").strip())  # Prompt for threshold input
-            if 0 <= threshold <= 1:  # Check if threshold is between 0 and 1
+            threshold = float(input("What should be the threshold similarity score (0-1): ").strip())
+            if 0 <= threshold <= 1:
                 break
             else:
-                print("Threshold must be between 0 and 1.")  # Error message for invalid threshold range
-        except ValueError:  # If the input is not a float, raise an error
-            print("Invalid input. Please enter a valid decimal number between 0 and 1.")  # Error message for invalid float input
+                print("Threshold must be between 0 and 1.")
+        except ValueError:
+            print("Invalid input. Please enter a valid decimal number between 0 and 1.")
 
-    return query, max_results, threshold  # Return the validated inputs
+    return query, year_low, year_high, max_results, threshold
 
 
 def format_query(query):
