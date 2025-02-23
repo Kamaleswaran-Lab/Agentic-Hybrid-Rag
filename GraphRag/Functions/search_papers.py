@@ -8,7 +8,7 @@ from Functions.auxiliary import format_query, generate_final_df
 
 
 # Function: Fetch ArXiv Papers
-def arxiv_search(query, max_results=10):
+def arxiv_search(query, max_results=10, year_low=2020, year_high=2025):
     """
     This function performs a search on ArXiv based on the provided query and returns a DataFrame with paper details.
 
@@ -33,7 +33,7 @@ def arxiv_search(query, max_results=10):
     """
     # format query if needed
     if "AND" in query:
-        query = format_query(query)
+        query = format_query(query, year_low=year_low, year_high=year_high)
 
     # Create a client to connect to ArXiv
     client = arxiv.Client()
@@ -47,6 +47,11 @@ def arxiv_search(query, max_results=10):
 
     # Perform the search and get the results
     results = list(client.results(search))
+
+    # return empty dataframe if no results are found
+    if not results:
+        print("Total papers retrieved from ArXiv: 0")
+        return pd.DataFrame(columns=["DOI", "Title", "Abstract", "Year", "Authors", "PDF_URL", "Database"])
 
     papers = []  # List to store paper details
     for result in tqdm(results, desc="Fetching ArXiv articles"):  # Progress bar while fetching results
@@ -77,7 +82,7 @@ def arxiv_search(query, max_results=10):
 
 
 # search pubmed database and get metadata
-def pubmed_search(query, max_results=10):
+def pubmed_search(query, max_results=10, year_low=2020, year_high=2025):
     """
     This function performs a search on PubMed based on the provided query and returns a DataFrame with paper details.
 
@@ -104,7 +109,12 @@ def pubmed_search(query, max_results=10):
     fetch = PubMedFetcher()
 
     # Get the PMIDs (PubMed IDs) for the query
-    pmids = fetch.pmids_for_query(query, retmax=max_results)
+    pmids = fetch.pmids_for_query(query, retmax=max_results, since=f"{year_low}/01/01", until=f"{year_high}/12/31")
+
+    # return empty dataframe if no results are found
+    if not pmids:
+        print("Total papers retrieved from PubMed: 0")
+        return pd.DataFrame(columns=["DOI", "Title", "Abstract", "Year", "Authors", "PDF_URL", "Database"])
 
     # Initialize dictionaries to store data for articles
     articles = {}
@@ -150,7 +160,7 @@ def pubmed_search(query, max_results=10):
 
 
 # function to google scholar papers
-def googleScholar_search(query, max_results=10):
+def googleScholar_search(query, max_results=10, year_low=2020, year_high=2025):
     """
     This function performs a search on Google Scholar based on the provided query and returns a DataFrame with paper details.
 
@@ -179,7 +189,12 @@ def googleScholar_search(query, max_results=10):
     scholarly.use_proxy(pg, pg)  # Set up the proxy for scholarly
 
     # Perform the search on Google Scholar
-    results = scholarly.search_pubs(query)
+    results = scholarly.search_pubs(query, year_low=year_low, year_high=year_high)
+
+    # return empty dataframe if no results are found
+    if not results:
+        print("Total papers retrieved from Google Scholar: 0")
+        return pd.DataFrame(columns=["DOI", "Title", "Abstract", "Year", "Authors", "PDF_URL", "Database"])
 
     # Create an empty DataFrame to store paper details
     papers = pd.DataFrame(columns=["DOI", "Title", "Abstract", "Year", "Authors", "PDF_URL", "Database"])
@@ -212,7 +227,7 @@ def googleScholar_search(query, max_results=10):
     return papers
 
 
-def search_papers(query, max_results=10):
+def search_papers(query, max_results=10, year_low=2020, year_high=2025):
     """
     This function searches for academic papers across multiple databases (PubMed, Google Scholar, and ArXiv)
     based on the provided query and returns a combined DataFrame with paper details.
@@ -238,13 +253,13 @@ def search_papers(query, max_results=10):
     """
 
     # Perform search on PubMed
-    pubmed = pubmed_search(query=query, max_results=max_results)
+    pubmed = pubmed_search(query=query, max_results=max_results, year_low=year_low, year_high=year_high)
 
     # Perform search on Google Scholar
-    google_scholar = googleScholar_search(query, max_results=max_results)
+    google_scholar = googleScholar_search(query, max_results=max_results, year_low=year_low, year_high=year_high)
 
     # Perform search on ArXiv
-    arxiv = arxiv_search(query=query, max_results=max_results)
+    arxiv = arxiv_search(query=query, max_results=max_results, year_low=year_low, year_high=year_high)
 
     # Combine results from all databases into a single DataFrame
     return generate_final_df(arxiv, pubmed, google_scholar)
