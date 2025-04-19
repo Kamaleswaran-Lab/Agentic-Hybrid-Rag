@@ -1093,6 +1093,11 @@ def evaluate_agent(testset, agent):
 
     print(f"Overall accuracy: {accuracy_overall}")
 
+    print(f"Cypher right: {cy_right}")
+    print(f"Cypher total queries: {total_queries_cy}")
+    print(f"Similarity right: {sim_right}")
+    print(f"Similarity total queries: {total_queries_sim}")
+    
     # accuracy agent
     cy_final = cy_right / total_queries_cy
     sim_final = sim_right / total_queries_sim
@@ -1111,7 +1116,7 @@ def evaluate_agent(testset, agent):
                "Overall Accuracy",
                "Overall Similarity Accuracy",
                "Overall Cypher Accuracy",
-               "Accuracy (Node Centered)"
+               "Accuracy (Node Centered)",
                "Accuracy (Relationship Centered)",
                "Accuracy (Relationship Discovery)",
                "Accuracy (Fact Check)",
