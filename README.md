@@ -5,15 +5,17 @@
 ![Pipeline Overview](assets/general_workflow.png)  
 *Figure 1: Pipeline Architecture.*  
 
+
 ![KG](assets/kg.png) 
 *Figure 2: Knowledge Graph Schematic Model.*
+
 
 ![Cypher](assets/cypher.png) 
 *Figure 3: KG Retrieval Function with Cypher query mode.*
 
 
 ![VS](assets/sim.png) 
-*Figure 3: VS Retrieval Function.*
+*Figure 4: VS Retrieval Function.*
 
 ## Table of Contents
 - [Features](#features)  
