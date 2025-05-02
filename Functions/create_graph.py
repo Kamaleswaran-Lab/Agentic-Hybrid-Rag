@@ -1,5 +1,6 @@
 import pandas as pd
 import ast
+import os
 
 from py2neo import Graph, Node, Relationship
 from langchain_ollama import OllamaEmbeddings
@@ -23,7 +24,7 @@ def create_knowledge_graph(papers):
     - None (modifies the Neo4j database).
     """
 
-    embedding_model = OllamaEmbeddings(model="llama3")
+    embedding_model = OllamaEmbeddings(model="mistral")
 
     # Extract unique values, ensuring no empty nodes are created
     years = [str(y).strip() for y in papers["Year"].unique() if pd.notna(y)]
@@ -33,9 +34,9 @@ def create_knowledge_graph(papers):
     citations = [a.strip() for a in papers["References"].explode().unique() if pd.notna(a) and a.strip()]
 
     # Get credentials
-    uri = "neo4j+s://91f991ec.databases.neo4j.io"
-    username = "neo4j"
-    password = "COeHGYRiC2H4YzRFer_o11lHQDEsuBBfr8Ules7G1PQ"
+    uri = os.getenv("KG_URI")
+    username = os.getenv("KG_USERNAME")
+    password = os.getenv("KG_PASSWORD")
 
     # Connect to the Neo4j database
     graph = Graph(uri,
@@ -148,15 +149,6 @@ def create_knowledge_graph(papers):
     # Refresh all relationships
     graph.run("MATCH ()-[r]->() SET r = r RETURN count(r);")
 
-    # Create full-text index with all relevant nodes
-    #indexes = graph.run("SHOW INDEXES YIELD name, type WHERE type = 'FULLTEXT'")
-    #indexes = [index["name"] for index in indexes.data()]
-
-    # Check for the presence of the desired index by name
-    #if "fullIndex" not in indexes:
-    #    graph.run(
-    #        "CREATE FULLTEXT INDEX fullIndex FOR (n:Paper|Keyword|Year|Author|Database) ON EACH [n.year, n.citation, n.author, n.keyword, n.database, n.doi, n.paper, n.abstract]")
-
     print("Graph created with success!")
 
-    return  # The function modifies the Neo4j database, so no return value is needed
+    return
