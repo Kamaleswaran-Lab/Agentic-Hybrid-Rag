@@ -22,8 +22,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 from langchain_ollama import OllamaLLM, OllamaEmbeddings
 from nltk.tokenize import sent_tokenize
 from Functions.functions import cypher_search
-#from ragas import SingleTurnSample
-#from ragas.metrics import NonLLMContextPrecisionWithReference
 from ragas import EvaluationDataset, evaluate
 from ragas.llms import LangchainLLMWrapper
 from langchain_ollama import OllamaEmbeddings, ChatOllama
