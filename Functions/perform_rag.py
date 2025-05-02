@@ -7,9 +7,6 @@ from Functions.tool import tool
 from Functions.tool_agent import ToolAgent
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain_community.vectorstores import Neo4jVector
-from langchain_community.vectorstores.neo4j_vector import remove_lucene_chars
-from langchain_neo4j import Neo4jGraph
-from groq import Groq
 from langchain.retrievers import EnsembleRetriever
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain_cohere import CohereRerank
