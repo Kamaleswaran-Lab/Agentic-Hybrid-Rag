@@ -1,7 +1,6 @@
 import pickle
 import pandas as pd
 from tqdm import tqdm
-import os
 import re
 import json
 import ast
@@ -11,22 +10,9 @@ from scipy import stats
 
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain_neo4j import Neo4jGraph
-from langchain_community.retrievers import BM25Retriever
-from langchain_community.vectorstores import FAISS
-from langchain.retrievers import EnsembleRetriever
-from langchain.retrievers import ContextualCompressionRetriever
-from langchain_cohere import CohereRerank
-from langchain.prompts import ChatPromptTemplate
-from Functions.perform_rag import agent_rag, baseline_RAG
+from Functions.perform_rag import baseline_RAG
 from sklearn.metrics.pairwise import cosine_similarity
 from langchain_ollama import OllamaLLM, OllamaEmbeddings
-from nltk.tokenize import sent_tokenize
-from Functions.functions import cypher_search, similarity_search
-from ragas import EvaluationDataset, evaluate
-from ragas.llms import LangchainLLMWrapper
-from langchain_ollama import OllamaEmbeddings, ChatOllama
-from ragas.metrics import LLMContextRecall, Faithfulness, FactualCorrectness, ResponseRelevancy, ContextPrecision
-from collections import defaultdict
 
 
 nltk.download('punkt', quiet=True)
