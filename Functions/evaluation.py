@@ -36,7 +36,7 @@ def get_questions_similarity_tool():
     if len(testset) >= 20:
         testset = testset.sample(20).reset_index(drop=True)
 
-    llm = OllamaLLM(model="llama3")
+    llm = OllamaLLM(model="mistral")
 
     questions = []
     ground_truths = []
@@ -89,9 +89,9 @@ def get_questions_similarity_tool():
 def get_questions_cypher_tool():
 
     # Connection credentials for the Neo4j database
-    uri = "neo4j+s://91f991ec.databases.neo4j.io"
-    username = "neo4j"
-    password = "COeHGYRiC2H4YzRFer_o11lHQDEsuBBfr8Ules7G1PQ"
+    uri = os.getenv("KG_URI")
+    username = os.getenv("KG_USERNAME")
+    password = os.getenv("KG_PASSWORD")
 
     # Connect to the Neo4j graph database
     graph = Neo4jGraph(
@@ -539,7 +539,7 @@ def extract_statements(answer):
 def verify_statements(context, statements):
     verdicts = {}
 
-    llm = OllamaLLM(model="llama3")
+    llm = OllamaLLM(model="mistral")
 
     for statement in statements:
 
@@ -645,7 +645,7 @@ def get_embedding(texts):
         texts = [texts]
     if not texts:
         return []
-    embedding = OllamaEmbeddings(model="llama3")
+    embedding = OllamaEmbeddings(model="mistral")
     return embedding.embed_documents(texts)
 
 
@@ -687,7 +687,7 @@ def judge_relevance(question, answer, context):
     Use a language model to judge the relevance of a context to the query.
     Returns 1 for relevant and 0 for not relevant.
     """
-    llm = OllamaLLM(model="llama3")
+    llm = OllamaLLM(model="mistral")
 
     prompt = f"""Given question, a answer and a context within xml tags, verify if the context was useful in arriving at the given answer.
              Give verdict as "1" if useful and "0" if not. Think carefully before providing the answer. 
@@ -762,7 +762,7 @@ def context_recall_classifier(truth, context):
 
     classifications = []
 
-    llm = OllamaLLM(model="llama3")
+    llm = OllamaLLM(model="mistral")
 
     for sentence in sentences:
         prompt = f""""Given a context and an sentence within the xml tags, analyze the sentence and classify if it can be attributed to the given context or not. 
@@ -818,7 +818,7 @@ def calculate_confidence_interval(data, confidence=0.95):
     return mean, margin_of_error
 
 
-def evaluate_agent_with_bootstrap(testset, agent, num_iterations=15, confidence_level=0.95, file_name="agentic_model"):
+def evaluate_agent_with_bootstrap(testset, agent, num_iterations=20, confidence_level=0.95, file_name="agentic_model"):
     print("Starting evaluation...")
 
     # Set up vectors for metrics
@@ -838,7 +838,7 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=15, confidence_
         print(f"Iteration: {z+1}")
 
         sample = testset.groupby("Tool", group_keys=False).apply(
-            lambda x: x.sample(5)
+            lambda x: x.sample(10)
         ).reset_index(drop=True)
 
         print(f"Sample:")
@@ -863,11 +863,6 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=15, confidence_
                             sim_accuracy.append(1)
                         else:
                             sim_accuracy.append(0)
-
-                    # Vector search evaluation
-                    #response = similarity_search(question)
-                    #retrieved_context = json.loads(response)
-                    #context = [retrieved_context["Answer"]]
 
                     context = result["context"]
 
@@ -902,11 +897,6 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=15, confidence_
                             cy_accuracy.append(1)
                         else:
                             cy_accuracy.append(0)
-
-                    # Cypher search evaluation
-                    #response = cypher_search(question)
-                    #retrieved_context = json.loads(response)
-                    #context = [retrieved_context["Answer"]]
 
                     context = result["context"]
                     print(f"Context: {context}")
@@ -1000,7 +990,7 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=15, confidence_
     return
 
 
-def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=12, confidence_level=0.95, file_name="baseline_model"):
+def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=15, confidence_level=0.95, file_name="baseline_model"):
 
     print("Starting evaluation...")
 
@@ -1019,7 +1009,7 @@ def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=12, confidence_l
         print(f"Iteration: {z + 1}")
 
         sample = testset.groupby("Tool", group_keys=False).apply(
-            lambda x: x.sample(5)
+            lambda x: x.sample(10)
         ).reset_index(drop=True)
 
         print(f"Sample:")
