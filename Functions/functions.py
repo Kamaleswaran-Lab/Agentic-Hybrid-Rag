@@ -36,9 +36,9 @@ def cypher_search(question: str):
     llm = OllamaLLM(model="mistral")
 
     # Connection credentials for the Neo4j database
-    uri = "neo4j+s://91f991ec.databases.neo4j.io"
-    username = "neo4j"
-    password = "COeHGYRiC2H4YzRFer_o11lHQDEsuBBfr8Ules7G1PQ"
+    uri = os.getenv("KG_URI")
+    username = os.getenv("KG_USERNAME")
+    password = os.getenv("KG_PASSWORD")
 
     # Connect to the Neo4j graph database
     graph = Neo4jGraph(
@@ -225,7 +225,7 @@ def similarity_search(question: str):
     keyword_retriever.k = 5  # Retrieve top 5 most relevant documents
 
     # Initialize embedding model for vector similarity search
-    embedding = OllamaEmbeddings(model="llama3")
+    embedding = OllamaEmbeddings(model="mistral")
 
     # Load the FAISS vector index from local storage
     vectorstore = FAISS.load_local("Database/faiss_index", embedding, allow_dangerous_deserialization=True)
