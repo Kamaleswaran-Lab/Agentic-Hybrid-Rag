@@ -572,8 +572,6 @@ def verify_statements(context, statements):
 
 
 def compute_faithfulness_score(question, answer, context):
-    print(f"question: {question}")
-    print(f"answer: {answer}")
 
     statements = extract_statements(answer)
 
@@ -733,7 +731,7 @@ def compute_precision_at_k(retrieved_contexts, query, answer, k=3):
     # Judge the relevance of each context using the LLM
     relevance_scores = [judge_relevance(query, answer, context) for context in selected_contexts]
 
-    print(f"[compute_precision_at_k] Relevance scores: {relevance_scores}")
+    print(f"[compute_precision_at_{k}] Relevance scores: {relevance_scores}")
 
     # Total number of relevant items in the top K
     total_relevant = sum(relevance_scores)
@@ -846,7 +844,7 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=20, confidence_
 
         # Loop through the test set
         for i, (question, truth, tool) in tqdm(enumerate(zip(sample["Question"], sample["Ground Truth"], sample["Tool"])),
-                                                total=len(sample), desc=f"Evaluating questions (Iteration {z+1})"):
+                                                total=len(sample), desc=f"Evaluating questions (Iteration {z+1}/{num_iterations})"):
 
             # safely move on to next iteration if internal error happens
             try:
@@ -866,7 +864,9 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=20, confidence_
 
                     context = result["context"]
 
+                    print(f"Question: {question}")
                     print(f"Context: {context}")
+                    print(f"Answer: {final_answer}")
 
                     # Metrics calculations for similarity search
                     faithfulness = compute_faithfulness_score(question, final_answer, context)
@@ -899,7 +899,10 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=20, confidence_
                             cy_accuracy.append(0)
 
                     context = result["context"]
+                    
+                    print(f"Question: {question}")
                     print(f"Context: {context}")
+                    print(f"Answer: {final_answer}")
 
                     # Metrics calculations for Cypher search
                     faithfulness = compute_faithfulness_score(question, final_answer, context)
@@ -990,7 +993,7 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=20, confidence_
     return
 
 
-def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=15, confidence_level=0.95, file_name="baseline_model"):
+def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=20, confidence_level=0.95, file_name="baseline_model"):
 
     print("Starting evaluation...")
 
@@ -1018,7 +1021,7 @@ def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=15, confidence_l
         # Loop through the test set
         for i, (question, truth, tool) in tqdm(
                 enumerate(zip(sample["Question"], sample["Ground Truth"], sample["Tool"])),
-                total=len(sample), desc=f"Evaluating questions (Iteration {z+1})"):
+                total=len(sample), desc=f"Evaluating questions (Iteration {z+1}/{num_iterations})"):
 
             # safely move on to next iteration if internal error happens
             try:
@@ -1028,7 +1031,9 @@ def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=15, confidence_l
 
                     context, final_answer = baseline_RAG(question)
 
+                    print(f"Question: {question}")
                     print(f"Context: {context}")
+                    print(f"Answer: {final_answer}")
 
                     # Metrics calculations for similarity search
                     faithfulness = compute_faithfulness_score(question, final_answer, context)
@@ -1051,7 +1056,9 @@ def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=15, confidence_l
 
                     context, final_answer = baseline_RAG(question)
 
+                    print(f"Question: {question}")
                     print(f"Context: {context}")
+                    print(f"Answer: {final_answer}")
 
                     # Metrics calculations for Cypher search
                     faithfulness = compute_faithfulness_score(question, final_answer, context)
