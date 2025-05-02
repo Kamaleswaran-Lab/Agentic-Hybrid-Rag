@@ -141,7 +141,10 @@ def cypher_search(question: str):
 
         user_question: which authors have published in the database 'IEEE Xplore'
         Cypher query: MATCH (p:paper)-[:indexed_at]->(d:database), (p)-[:authored_by]->(a:author) WHERE d.database = 'IEEE Xplore' RETURN DISTINCT a.author as authors
-
+        
+        user_question: amount of papers published in 2024
+        Cypher query: MATCH (p:paper)-[:PUBLISHED_IN]->(y:year) WHERE y.year = '2024' RETURN count(p) AS papers_published_in_2024
+        
     <user_question>
     {question}
     </user_question>
@@ -192,7 +195,7 @@ def cypher_search(question: str):
     Answer:"""
 
     # Return the final answer as a JSON string
-    return json.dumps({"Answer": llm.invoke(prompt)})
+    return json.dumps({"Answer": llm.invoke(prompt), "Context": [f"{result}"]})
 
 
 def similarity_search(question: str):
@@ -272,8 +275,10 @@ def similarity_search(question: str):
         <context>
         {context}
         </context>
+        
+        Just answer the question. Do not add any information that is not related to the question. Do not deviate from the specified format.
         Answer:
         """
 
     # Return the final answer as a JSON string
-    return json.dumps({"Answer": llm.invoke(prompt)})
+    return json.dumps({"Answer": llm.invoke(prompt), "Context": context})

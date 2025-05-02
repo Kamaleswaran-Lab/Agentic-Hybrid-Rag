@@ -21,7 +21,9 @@ from Functions.perform_rag import agent_rag, baseline_RAG
 from sklearn.metrics.pairwise import cosine_similarity
 from langchain_ollama import OllamaLLM, OllamaEmbeddings
 from nltk.tokenize import sent_tokenize
-from Functions.functions import cypher_search
+from Functions.functions import cypher_search, similarity_search
+#from ragas import SingleTurnSample
+#from ragas.metrics import NonLLMContextPrecisionWithReference
 from ragas import EvaluationDataset, evaluate
 from ragas.llms import LangchainLLMWrapper
 from langchain_ollama import OllamaEmbeddings, ChatOllama
@@ -45,7 +47,7 @@ def get_questions_similarity_tool():
         for doc in documents
     ]
 
-    testset = pd.DataFrame({"Answer": context})
+    testset = pd.DataFrame({"Reference Chunk": context})
 
     if len(testset) >= 20:
         testset = testset.sample(20).reset_index(drop=True)
@@ -53,27 +55,45 @@ def get_questions_similarity_tool():
     llm = OllamaLLM(model="llama3")
 
     questions = []
+    ground_truths = []
     for _, row in tqdm(testset.iterrows(), total=len(testset), desc="Generating Similarity Retrieval Questions"):
 
-        context = row["Answer"]["content"]
+        c = row["Reference Chunk"]["content"]
 
-        prompt = f"""Generate a question that can only be answered from this context within the xml tags. 
-                 Don't create generic questions. Don't mention specific figures, tables, sections or even the actual document in the question. 
-                 Focus only in its the content and main ideas.
-                 
-                 <context> 
-                 {context}
-                 </context>
-                 
-                 Output examples:  
-                 
-                 'What is the main purpose of the partnership between OpenAI and Guardian Media Group announced on February 14, 2025?'
-                 'What is the purpose of OpenAI's agreement with the U.S. National Laboratories as described in the document?
-                 'What was the specific AI model used during the '1,000 Scientist AI Jam Session' event across the nine national labs?
-                 
-                 The output should just be the question. No pre-amble. Do not deviate from the specified format.
-                 """
-        questions.append(llm.invoke(prompt))
+        prompt = f"""Generate a question and its corresponding answer based strictly on the content inside the <context> XML tags. 
+
+                Instructions for the question: 
+                    - Create a question that can only be answered using the provided context.
+                    - Avoid questions that refer to specific items such as surveys, figures, tables, sections, citations, or other document markers.
+                    - Focus on the main ideas and content, ensuring the question is specific to what is described.
+
+                Instructions for the answer:
+                    - Provide a concise, complete, and detailed answer, between 1 and 3 lines, based solely on the context. Do not add extra information.
+
+                <context> 
+                {c}
+                </context>
+
+                No pre-amble. Do not deviate from the specified format.
+
+                Question:
+                Answer:
+                """
+
+        response = llm.invoke(prompt)
+
+        try:
+            question = re.search(r"Question:\s*(.*)", response).group(1)
+            truth = re.search(r"Answer:\s*(.*)", response).group(1)
+
+        except:
+            question = np.nan
+            truth = np.nan
+
+        questions.append(question)
+        ground_truths.append(truth)
+
+    testset["Ground Truth"] = ground_truths
 
     testset["Question"] = questions
 
@@ -463,7 +483,7 @@ def get_questions_cypher_tool():
     questions.append(f"Has the keyword {result[0]['keyword']} been used in any paper published in the database {result[0]['database']}?")
     answers.append(f"{result[0]['isKeywordUsedInDatabase']}. The keyword {result[0]['keyword']} was used in the following papers at the {result[0]['database']} database: {result[0]['papers']}")
 
-    testset = pd.DataFrame({"Question": questions, "Answer": answers})
+    testset = pd.DataFrame({"Question": questions, "Ground Truth": answers})
 
     testset["Tool"] = "cypher_search"
 
@@ -513,6 +533,8 @@ def extract_statements(answer):
     """
 
     response = llm.invoke(prompt)
+
+    response = response.strip().replace(r"\n", "")
 
     try:
         response = ast.literal_eval(response)
@@ -571,6 +593,12 @@ def compute_faithfulness_score(question, answer, context):
 
     statements = extract_statements(answer)
 
+    if isinstance(statements, str):
+        try:
+            statements = ast.literal_eval(statements)
+        except:
+            return np.nan
+
     if len(statements) == 0:
         return np.nan
 
@@ -611,6 +639,8 @@ def generate_questions(answer, n=3):
     """
 
     response = llm.invoke(prompt)
+    response = response.strip().replace(r"\n", "")
+
     try:
         response = ast.literal_eval(response)
 
@@ -668,7 +698,7 @@ def answer_relevance(original_question, answer, n=3):
     return np.mean(similarities)
 
 
-def judge_relevance(question, context):
+def judge_relevance(question, answer, context):
     """
     Use a language model to judge the relevance of a context to the query.
     Returns 1 for relevant and 0 for not relevant.
@@ -680,6 +710,11 @@ def judge_relevance(question, context):
              <question>
              {question}
              </question>
+             
+             <answer>
+             {answer}
+             </answer>
+             
              <context> 
              {context}
              </context>
@@ -696,12 +731,13 @@ def judge_relevance(question, context):
     return response
 
 
-def compute_precision_at_k(retrieved_contexts, query, k=3):
+def compute_precision_at_k(retrieved_contexts, query, answer, k=3):
     """
     Compute the Context Precision at K for a given query and retrieved contexts.
 
     :param retrieved_contexts: List of context chunks (strings).
     :param query: The query string.
+    :param answer: The generated answer
     :param k: The number of top contexts to evaluate.
     :return: Context Precision at K
     """
@@ -711,7 +747,7 @@ def compute_precision_at_k(retrieved_contexts, query, k=3):
     print(f"[compute_precision_at_k] Top-{k} retrieved contexts: {selected_contexts}")
 
     # Judge the relevance of each context using the LLM
-    relevance_scores = [judge_relevance(query, context) for context in selected_contexts]
+    relevance_scores = [judge_relevance(query, answer, context) for context in selected_contexts]
 
     print(f"[compute_precision_at_k] Relevance scores: {relevance_scores}")
 
@@ -736,9 +772,9 @@ def compute_precision_at_k(retrieved_contexts, query, k=3):
     return context_precision_at_k
 
 
-def context_recall_classifier(answer, context):
+def context_recall_classifier(truth, context):
 
-    sentences = re.split(r'(?<=[.!?])\s+', answer.strip())
+    sentences = re.split(r'(?<=[.!?;])\s+', truth.strip())
 
     classifications = []
 
@@ -771,279 +807,14 @@ def context_recall_classifier(answer, context):
     return classifications
 
 
-def context_recall(answer, context):
+def context_recall(truth, context):
 
-    classifications = context_recall_classifier(answer, context)
+    classifications = context_recall_classifier(truth, context)
 
     valid = [c for c in classifications if c in [0, 1]]
     if not valid:
         return np.nan
     return sum(valid) / len(valid)
-
-
-def evaluate_agent(testset, agent):
-
-    print("Starting evaluation...")
-
-    total_queries_sim = len(testset.loc[testset["Tool"] == "similarity_search", :])
-    total_queries_cy = len(testset.loc[testset["Tool"] == "cypher_search", :])
-
-    # agent parameters
-    sim_right = 0
-    cy_right = 0
-
-    # setup vector search tool
-    with open("Database/text_splits.pkl", "rb") as f:
-        text_splits = pickle.load(f)
-
-    # Initialize a keyword-based retriever using BM25
-    keyword_retriever = BM25Retriever.from_documents(text_splits)
-    keyword_retriever.k = 5  # Retrieve top 5 most relevant documents
-
-    # Initialize embedding model for vector similarity search
-    embedding = OllamaEmbeddings(model="llama3")
-
-    # Load the FAISS vector index from local storage
-    vectorstore = FAISS.load_local("Database/faiss_index", embedding, allow_dangerous_deserialization=True)
-
-    # Create a retriever using FAISS with top-5 search
-    vector_retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-
-    # Combine both retrievers with equal weight
-    ensemble_retriever = EnsembleRetriever(
-        retrievers=[vector_retriever, keyword_retriever],
-        weights=[0.5, 0.5]
-    )
-
-    # Set API key for Cohere's reranker model
-    os.environ["COHERE_API_KEY"] = "Ni2SuJm5hKdJict4OAblCsQ3l08tA3AYZwbQa2CL"
-
-    # Apply Cohere's reranking model to compress and filter context
-    compressor = CohereRerank(model="rerank-english-v3.0")
-    compression_retriever = ContextualCompressionRetriever(
-        base_compressor=compressor,
-        base_retriever=ensemble_retriever
-    )
-
-    s_recalls = []
-    s_faithfulnesses = []
-    s_precisions = []
-    s_relevances = []
-    c_recalls = []
-    c_faithfulnesses = []
-    c_precisions = []
-    c_relevances = []
-
-    for i, (question, answer, tool) in tqdm(enumerate(zip(testset["Question"], testset["Answer"], testset["Tool"])), total=len(testset), desc="Evaluating questions"):
-
-        if tool == "similarity_search":
-
-            print("similarity task")
-
-            print("evaluate agent decision and final response")
-
-            result = agent.run(user_msg=question)
-
-            print(result)
-
-            final_answer = result["final_response"]
-
-            if result["tool_call"] is not None:
-                tool_used = json.loads(result["tool_call"])
-
-                if tool_used["name"] == tool:
-                    sim_right += 1
-                    print("used right function")
-                else:
-                    print("didn't use right function")
-
-            print("evaluate vector search")
-
-            # Retrieve the most relevant context for the input question
-            context = compression_retriever.invoke(question)
-
-            context = [
-                {
-                    "source": doc.metadata.get('source', 'unknown'),
-                    "content": doc.page_content
-                }
-                for doc in context
-            ]
-
-            print(f"context: {context}")
-
-            # compute faithfullness
-            faithfulness = compute_faithfulness_score(question, final_answer, context)
-            print(f"Faithfullness: {faithfulness}")
-            s_faithfulnesses.append(faithfulness)
-
-            # compute answer relevance
-            relevance = answer_relevance(question, final_answer, n=3)
-            print(f"Answer Relevance: {relevance}")
-            s_relevances.append(relevance)
-
-            # compute precision at k=3
-            precision = compute_precision_at_k(context, question, k=10)
-            print(f"Precision at k=3: {precision}")
-            s_precisions.append(precision)
-
-            # compute context recall
-            recall = context_recall(final_answer, context)
-            print(f"Context Recall: {recall}")
-            s_recalls.append(recall)
-
-        # cypher questions
-        else:
-            print("cypher task")
-
-            print("evaluate agent decision and final response")
-
-            result = agent.run(user_msg=question)
-
-            final_answer = result["final_response"]
-
-            if result["tool_call"] is not None:
-                tool_used = json.loads(result["tool_call"])
-
-                if tool_used["name"] == tool:
-                    cy_right += 1
-                    print("used right function")
-                else:
-                    print("didn't use the right function")
-
-            print("evaluate graph search")
-
-            response = cypher_search(question)
-
-            # Safely extract the Answer from the JSON response
-            retrieved_context = json.loads(response)
-
-            # Treat context as a single retrieved chunk
-            context = [retrieved_context["Answer"]]
-
-            print(f"context: {context}")
-
-            # compute faithfullness
-            faithfulness = compute_faithfulness_score(question, final_answer, context)
-            print(f"Faithfullness: {faithfulness}")
-            c_faithfulnesses.append(faithfulness)
-
-            # compute answer relevance
-            relevance = answer_relevance(question, final_answer, n=1)
-            print(f"Answer Relevance: {relevance}")
-            c_relevances.append(relevance)
-
-            # compute precision at k=1
-            precision = compute_precision_at_k(context, question, k=1)
-            print(f"Precision at k=3: {precision}")
-            c_precisions.append(precision)
-
-            # compute context recall
-            recall = context_recall(final_answer, context)
-            print(f"Context Recall: {recall}")
-            c_recalls.append(recall)
-
-    print(f"Similarity faithfulness: {s_faithfulnesses}")
-    print(f"Similarity answer relevance: {s_relevances}")
-    print(f"Similarity precision at k=3: {s_precisions}")
-    print(f"Similarity context recall: {s_recalls}")
-    print(f"Cypher faithfulness: {c_faithfulnesses}")
-    print(f"Cypher answer relevance: {c_relevances}")
-    print(f"Cypher precision at k=1: {c_precisions}")
-    print(f"Cypher context recall: {c_recalls}")
-
-    # get means
-    mean_sf = np.nanmean(s_faithfulnesses)
-    print(f"Mean similarity faithfulness: {mean_sf}")
-
-    mean_sar = np.nanmean(s_relevances)
-    print(f"Mean similarity answer relevance: {mean_sar}")
-
-    mean_sp = np.nanmean(s_precisions)
-    print(f"Mean similarity precision at k=3: {mean_sp}")
-
-    mean_sr = np.nanmean(s_recalls)
-    print(f"Mean similarity context recall: {mean_sr}")
-
-    mean_cf = np.nanmean(c_faithfulnesses)
-    print(f"Mean cypher faithfulness: {mean_cf}")
-
-    mean_car = np.nanmean(c_relevances)
-    print(f"Mean cypher answer relevance: {mean_car}")
-
-    mean_cp = np.nanmean(c_precisions)
-    print(f"Mean cypher precision at k=3: {mean_cp}")
-
-    mean_cr = np.nanmean(c_recalls)
-    print(f"Mean cypher context recall: {mean_cr}")
-
-    mean_of = np.nanmean(s_faithfulnesses + c_faithfulnesses)
-    print(f"Mean overall faithfulness: {mean_of}")
-
-    mean_oar = np.nanmean(s_relevances + c_relevances)
-    print(f"Mean overall answer relevance: {mean_oar}")
-
-    mean_op = np.nanmean(s_precisions + c_precisions)
-    print(f"Mean overall precision at k=3: {mean_op}")
-
-    mean_or = np.nanmean(s_recalls + c_recalls)
-    print(f"Mean overall context recall: {mean_or}")
-
-    # accuracy agent
-    cy_final = cy_right / total_queries_cy
-    sim_final = sim_right / total_queries_sim
-
-    print(f"Agent accuracy on cypher: {cy_final}")
-    print(f"Agent accuracy on similarity {sim_final}")
-
-    # overall accuracy agent
-    agent_final = (sim_right + cy_right) / len(testset)
-
-    print(f"Overall agent accuracy: {agent_final}")
-
-    metrics = ["Overall Agent Accuracy",
-               "Agent Accuracy on Similarity Tasks",
-               "Agent Accuracy on Cypher Tasks",
-               "Similarity Faithfulness",
-               "Cypher Faithfulness",
-               "Overall Faithfulness",
-               "Similarity Answer Relevance",
-               "Cypher Answer Relevance",
-               "Overall Answer Relevance",
-               "Similarity Precision",
-               "Cypher Precision",
-               "Overall Precision",
-               "Similarity Context Recall",
-               "Cypher Context Recall",
-               "Overall Context Recall"
-               ]
-
-    results = [
-        agent_final,
-        sim_final,
-        cy_final,
-        mean_sf,
-        mean_cf,
-        mean_of,
-        mean_sar,
-        mean_car,
-        mean_oar,
-        mean_sp,
-        mean_cp,
-        mean_op,
-        mean_sr,
-        mean_cr,
-        mean_or,
-    ]
-
-    final_results = pd.DataFrame({"Metric": metrics, "Result": results})
-
-    final_results.to_excel("Evaluate/evaluation_results.xlsx", index=False)
-
-    print("Finished evaluating pipeline!")
-    print("Please check results within the Evaluate folder")
-
-    return
 
 
 # Confidence intervals calculation
@@ -1063,7 +834,7 @@ def calculate_confidence_interval(data, confidence=0.95):
     return mean, margin_of_error
 
 
-def evaluate_agent_with_bootstrap(testset, agent, num_iterations=10, confidence_level=0.95, file_name="agentic_model"):
+def evaluate_agent_with_bootstrap(testset, agent, num_iterations=15, confidence_level=0.95, file_name="agentic_model"):
     print("Starting evaluation...")
 
     # Set up vectors for metrics
@@ -1078,31 +849,6 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=10, confidence_
     sim_accuracy = []
     cy_accuracy = []
 
-    # Load necessary resources each iteration to avoid potential issues with mutable objects
-    with open("Database/text_splits.pkl", "rb") as f:
-        text_splits = pickle.load(f)
-
-    # Initialize keyword retriever and vectorstore each iteration
-    keyword_retriever = BM25Retriever.from_documents(text_splits)
-    keyword_retriever.k = 5  # Retrieve top 5 most relevant documents
-
-    embedding = OllamaEmbeddings(model="llama3")
-    vectorstore = FAISS.load_local("Database/faiss_index", embedding, allow_dangerous_deserialization=True)
-    vector_retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-
-    ensemble_retriever = EnsembleRetriever(
-        retrievers=[vector_retriever, keyword_retriever],
-        weights=[0.5, 0.5]
-    )
-
-    os.environ["COHERE_API_KEY"] = "Ni2SuJm5hKdJict4OAblCsQ3l08tA3AYZwbQa2CL"
-
-    compressor = CohereRerank(model="rerank-english-v3.0")
-    compression_retriever = ContextualCompressionRetriever(
-        base_compressor=compressor,
-        base_retriever=ensemble_retriever
-    )
-
     # Bootstrap loop for multiple iterations
     for z in range(num_iterations):
         print(f"Iteration: {z+1}")
@@ -1115,8 +861,8 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=10, confidence_
         print(sample)
 
         # Loop through the test set
-        for i, (question, answer, tool) in tqdm(enumerate(zip(sample["Question"], sample["Answer"], sample["Tool"])),
-                                                total=len(sample), desc="Evaluating questions"):
+        for i, (question, truth, tool) in tqdm(enumerate(zip(sample["Question"], sample["Ground Truth"], sample["Tool"])),
+                                                total=len(sample), desc=f"Evaluating questions (Iteration {z+1})"):
 
             # safely move on to next iteration if internal error happens
             try:
@@ -1135,26 +881,22 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=10, confidence_
                             sim_accuracy.append(0)
 
                     # Vector search evaluation
-                    context = compression_retriever.invoke(question)
+                    #response = similarity_search(question)
+                    #retrieved_context = json.loads(response)
+                    #context = [retrieved_context["Answer"]]
 
-                    context = [
-                        {
-                            "source": doc.metadata.get('source', 'unknown'),
-                            "content": doc.page_content
-                        }
-                        for doc in context
-                    ]
+                    context = result["context"]
 
                     print(f"Context: {context}")
 
                     # Metrics calculations for similarity search
                     faithfulness = compute_faithfulness_score(question, final_answer, context)
                     s_faithfulnesses.append(faithfulness)
-                    relevance = answer_relevance(question, final_answer, n=3)
+                    relevance = answer_relevance(question, final_answer, n=2)
                     s_relevances.append(relevance)
-                    precision = compute_precision_at_k(context, question, k=10)
+                    precision = compute_precision_at_k(context, question, final_answer, k=10)
                     s_precisions.append(precision)
-                    recall = context_recall(final_answer, context)
+                    recall = context_recall(truth, context)
                     s_recalls.append(recall)
 
                     print(f"Sim Accuracy: {sim_accuracy}")
@@ -1178,20 +920,21 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=10, confidence_
                             cy_accuracy.append(0)
 
                     # Cypher search evaluation
-                    response = cypher_search(question)
-                    retrieved_context = json.loads(response)
-                    context = [retrieved_context["Answer"]]
+                    #response = cypher_search(question)
+                    #retrieved_context = json.loads(response)
+                    #context = [retrieved_context["Answer"]]
 
+                    context = result["context"]
                     print(f"Context: {context}")
 
                     # Metrics calculations for Cypher search
                     faithfulness = compute_faithfulness_score(question, final_answer, context)
                     c_faithfulnesses.append(faithfulness)
-                    relevance = answer_relevance(question, final_answer, n=1)
+                    relevance = answer_relevance(question, final_answer, n=2)
                     c_relevances.append(relevance)
-                    precision = compute_precision_at_k(context, question, k=1)
+                    precision = compute_precision_at_k(context, question, final_answer, k=10)
                     c_precisions.append(precision)
-                    recall = context_recall(final_answer, context)
+                    recall = context_recall(truth, context)
                     c_recalls.append(recall)
 
                     print(f"Cy Accuracy: {cy_accuracy}")
@@ -1273,7 +1016,7 @@ def evaluate_agent_with_bootstrap(testset, agent, num_iterations=10, confidence_
     return
 
 
-def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=5, confidence_level=0.95, file_name="baseline_model"):
+def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=12, confidence_level=0.95, file_name="baseline_model"):
 
     print("Starting evaluation...")
 
@@ -1299,9 +1042,9 @@ def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=5, confidence_le
         print(sample)
 
         # Loop through the test set
-        for i, (question, answer, tool) in tqdm(
-                enumerate(zip(sample["Question"], sample["Answer"], sample["Tool"])),
-                total=len(sample), desc="Evaluating questions"):
+        for i, (question, truth, tool) in tqdm(
+                enumerate(zip(sample["Question"], sample["Ground Truth"], sample["Tool"])),
+                total=len(sample), desc=f"Evaluating questions (Iteration {z+1})"):
 
             # safely move on to next iteration if internal error happens
             try:
@@ -1316,11 +1059,11 @@ def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=5, confidence_le
                     # Metrics calculations for similarity search
                     faithfulness = compute_faithfulness_score(question, final_answer, context)
                     s_faithfulnesses.append(faithfulness)
-                    relevance = answer_relevance(question, final_answer, n=3)
+                    relevance = answer_relevance(question, final_answer, n=2)
                     s_relevances.append(relevance)
-                    precision = compute_precision_at_k(context, question, k=2)
+                    precision = compute_precision_at_k(context, question, final_answer, k=10)
                     s_precisions.append(precision)
-                    recall = context_recall(final_answer, context)
+                    recall = context_recall(truth, context)
                     s_recalls.append(recall)
 
                     print(f"Sim F: {faithfulness}")
@@ -1339,11 +1082,11 @@ def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=5, confidence_le
                     # Metrics calculations for Cypher search
                     faithfulness = compute_faithfulness_score(question, final_answer, context)
                     c_faithfulnesses.append(faithfulness)
-                    relevance = answer_relevance(question, final_answer, n=1)
+                    relevance = answer_relevance(question, final_answer, n=2)
                     c_relevances.append(relevance)
-                    precision = compute_precision_at_k(context, question, k=2)
+                    precision = compute_precision_at_k(context, question, final_answer, k=10)
                     c_precisions.append(precision)
-                    recall = context_recall(final_answer, context)
+                    recall = context_recall(truth, context)
                     c_recalls.append(recall)
 
                     print(f"Cy F: {faithfulness}")
@@ -1416,7 +1159,7 @@ def evaluate_baselineRAG_with_bootstrap(testset, num_iterations=5, confidence_le
     return
 
 
-def generate_dpo_data(data_points=10):
+def generate_dpo_data(data_points=6):
 
     dataset = generate_testset("dpo_data", save_results=False)
 
@@ -1454,6 +1197,8 @@ def generate_dpo_data(data_points=10):
         {context}
         </context>
         
+        Do not deviate from the specified format.
+        
         Answer:
         """
 
@@ -1474,6 +1219,8 @@ def generate_dpo_data(data_points=10):
         {gt}
         </ground truth>
         
+        Do not deviate from the specified format.
+        
         response:
         """
 
@@ -1491,6 +1238,8 @@ def generate_dpo_data(data_points=10):
                 <ground truth>
                 {gt}
                 </ground truth>
+                
+                Do not deviate from the specified format.
 
                 response:
                 """

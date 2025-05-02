@@ -228,14 +228,28 @@ class ToolAgent:
 
         if tool_calls.found:
             observations = self.process_tool_calls(tool_calls.content)
+
+            first_result = next(iter(observations.values()))
+
+            first_result = json.loads(first_result)
+
+            tool_observations = first_result.get("Answer")
+            context = first_result.get("Context")
+
             update_chat_history(
-                agent_chat_history, f'f"Observation: {observations}"', "user"
+                agent_chat_history, f"Observation: {context}", "user"
             )
 
+        else:
+            tool_observations = None
+            context = None
+
         return {
-            "final_response": completions_create(self.client, agent_chat_history, self.model),
+            #"final_response": completions_create(self.client, agent_chat_history, self.model),
+            "final_response": tool_observations,
             "agent_reasoning": agent_reasoning,
-            "tool_call": tool_calls.content[0] if tool_calls.found else None
+            "tool_call": tool_calls.content[0] if tool_calls.found else None,
+            "context": context
         }
 
         #return completions_create(self.client, agent_chat_history, self.model)
