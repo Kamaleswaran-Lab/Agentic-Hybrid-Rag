@@ -1,6 +1,7 @@
 import warnings
 import os
 
+from dotenv import load_dotenv
 from Functions.search_papers import search_papers
 from Functions.select_papers import select_papers
 from Functions.auxiliary import get_validated_input, clean_folder
@@ -16,6 +17,9 @@ def main():
     # Deactivate warnings
     warnings.filterwarnings("ignore")
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+    # load environment variables
+    load_dotenv()
 
     # remove papers from last query
     clean_folder("Papers")
