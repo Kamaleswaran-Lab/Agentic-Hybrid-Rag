@@ -9,8 +9,8 @@ from Functions.tool import Tool, validate_arguments
 from Functions.completions import build_prompt_structure, ChatHistory, completions_create, update_chat_history
 from Functions.extraction import extract_tag_content
 
-
-os.environ["GROQ_API_KEY"] = "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"
+groq_api_key = os.getenv("GROQ_API_KEY")
+os.environ["GROQ_API_KEY"] = groq_api_key
 
 
 TOOL_SYSTEM_PROMPT = """
@@ -245,11 +245,8 @@ class ToolAgent:
             context = None
 
         return {
-            #"final_response": completions_create(self.client, agent_chat_history, self.model),
             "final_response": tool_observations,
             "agent_reasoning": agent_reasoning,
             "tool_call": tool_calls.content[0] if tool_calls.found else None,
             "context": context
         }
-
-        #return completions_create(self.client, agent_chat_history, self.model)
