@@ -46,11 +46,11 @@ def agent_rag():
 
 def baseline_RAG(question):
     # Get credentials
-    uri = "neo4j+s://91f991ec.databases.neo4j.io"
-    username = "neo4j"
-    password = "COeHGYRiC2H4YzRFer_o11lHQDEsuBBfr8Ules7G1PQ"
+    uri = os.getenv("KG_URI")
+    username = os.getenv("KG_USERNAME")
+    password = os.getenv("KG_PASSWORD")
 
-    llm = OllamaLLM(model="llama3")
+    llm = OllamaLLM(model="mistral")
 
     with open("Database/text_splits.pkl", "rb") as f:
         text_splits = pickle.load(f)
@@ -75,7 +75,10 @@ def baseline_RAG(question):
     )
 
     # Set API key for Cohere's reranker model
-    os.environ["COHERE_API_KEY"] = "Ni2SuJm5hKdJict4OAblCsQ3l08tA3AYZwbQa2CL"
+
+    cohere_api_key = os.getenv("COHERE_API_KEY")
+    
+    os.environ["COHERE_API_KEY"] = cohere_api_key
 
     # Apply Cohere's reranking model to compress and filter context
     compressor = CohereRerank(model="rerank-english-v3.0")
@@ -148,17 +151,6 @@ def baseline_RAG(question):
         Just answer the question. Do not add any information that is not related to the question. Do not deviate from the specified format.
         Answer:
         """
-
-    #client = Groq(api_key="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")
-
-    #response = client.chat.completions.create(
-    #    model="llama-3.3-70b-versatile",
-    #    messages=[
-    #        {"role": "user", "content": RAG_PROMPT}
-    #    ]
-    #)
-
-    #final_answer = response.choices[0].message.content
     final_answer = llm.invoke(RAG_PROMPT)
     final_answer = final_answer.replace(r"\n", "")
 
