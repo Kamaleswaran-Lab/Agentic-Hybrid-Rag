@@ -24,7 +24,7 @@ Figure 3 presents the GraphRAG mechanism, which **enables querying the knowledge
 
 The resulting Cypher query is then executed against the Neo4j-hosted knowledge graph, and the output is forwarded back to the LLM to format a coherent, human-readable response — creating a seamless natural language to structured data pipeline.
 
-Figure 4 illustrates the VectorRAG process, which **combines keyword-based and semantic search via an ensemble retriever**. The returned text chunks are merged and reranked using Cohere’s ´rerank-english-v3.0´ model. This Transformer-based reranker evaluates the relevance between the query and each passage using deep cross-attention, **refining the results by emphasizing the most informative content**.
+Figure 4 illustrates the VectorRAG process, which **combines keyword-based and semantic search via an ensemble retriever**. The returned text chunks are merged and reranked using Cohere’s `rerank-english-v3.0` model. This Transformer-based reranker evaluates the relevance between the query and each passage using deep cross-attention, **refining the results by emphasizing the most informative content**.
 
 ![VS](assets/sim.png) 
 *Figure 4: VS Retrieval Function.*
