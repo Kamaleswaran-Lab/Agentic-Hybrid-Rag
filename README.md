@@ -19,17 +19,17 @@ Each Publication node retains key internal attributes (e.g., DOI, title, abstrac
 
 Figure 3 presents the GraphRAG mechanism, which **enables querying the knowledge graph through natural language**. The user’s prompt is first passed to a language model, along with the graph schema and a curated set of 30 example input-output pairs to support few-shot learning. This helps the model generate accurate Cypher queries that align with the KG structure.
 
-The resulting Cypher query is then executed against the Neo4j-hosted knowledge graph, and the output is forwarded back to the LLM to format a coherent, human-readable response — creating a seamless natural language to structured data pipeline.
-
 ![Cypher](assets/cypher.png) 
 *Figure 3: KG Retrieval Function with Cypher query mode.*
 
-Figure 4 illustrates the VectorRAG process, which **combines keyword-based and semantic search via an ensemble retriever**. The returned text chunks are merged and reranked using Cohere’s ´rerank-english-v3.0´ model. This Transformer-based reranker evaluates the relevance between the query and each passage using deep cross-attention, **refining the results by emphasizing the most informative content**.
+The resulting Cypher query is then executed against the Neo4j-hosted knowledge graph, and the output is forwarded back to the LLM to format a coherent, human-readable response — creating a seamless natural language to structured data pipeline.
 
-The top-ranked passages are then forwarded to the language model, which uses them as context to generate and structure a final answer — **boosting both accuracy and fluency in open-domain question answering**.
+Figure 4 illustrates the VectorRAG process, which **combines keyword-based and semantic search via an ensemble retriever**. The returned text chunks are merged and reranked using Cohere’s ´rerank-english-v3.0´ model. This Transformer-based reranker evaluates the relevance between the query and each passage using deep cross-attention, **refining the results by emphasizing the most informative content**.
 
 ![VS](assets/sim.png) 
 *Figure 4: VS Retrieval Function.*
+
+The top-ranked passages are then forwarded to the language model, which uses them as context to generate and structure a final answer — **boosting both accuracy and fluency in open-domain question answering**.
 
 The **integration of knowledge graphs and vector-based** storage, mediated by natural language agents, provides a **robust and flexible approach** for automated knowledge extraction from scientific literature. The proposed pipeline demonstrates how complementary retrieval mechanisms — structured via Cypher and semantic via embeddings — can be intelligently orchestrated by an agent to generate **more accurate and contextually enriched responses**. By enabling analytical and descriptive queries about publications, authors, and citation patterns, this hybrid architecture **enhances bibliometric exploration and insight generation**, contributing to the development of more transparent, efficient, and interpretable tools in support of scientific research.
 
