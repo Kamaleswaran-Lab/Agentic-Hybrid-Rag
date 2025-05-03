@@ -13,7 +13,7 @@ Building on that, Figure 2 illustrates the structure of the generated KG, where 
 ![KG](assets/kg.png) 
 *Figure 2: Knowledge Graph Schematic Model.*
 
-Each Publication node retains key internal attributes (e.g., DOI, title, abstract), enabling granular retrieval and analysis. By modeling bibliometric data this way, the system **supports powerful structural and descriptive queries** — such as exploring co-authorship networks, temporal trends, database coverage, and citation paths—to provide a comprehensive view of the academic research landscape.
+Each Publication node retains key internal attributes (e.g., DOI, title, abstract), enabling granular retrieval and analysis. By modeling bibliometric data this way, the system **supports powerful structural and descriptive queries** — such as exploring co-authorship networks, temporal trends, database coverage, and citation paths — to provide a comprehensive view of the academic research landscape.
 
 ## Available Functions
 
