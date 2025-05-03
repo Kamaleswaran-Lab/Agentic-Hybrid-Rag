@@ -6,7 +6,7 @@ This project presents a **fully open-source, Python-based pipeline for automatic
 ![Pipeline Overview](assets/general_workflow.png)  
 *Figure 1: Pipeline Architecture.*  
 
-The system collects bibliometric data from **PubMed, arXiv, and Google Scholar**, processes it into structured formats, and enables **AI-powered question answering (QA)** by allowing an intelligent agent to **choose between symbolic (Cypher) and semantic (vector) search based on the user's query**, as illustrated on Figure 1.
+The system collects bibliometric data from **PubMed, arXiv, and Google Scholar**, processes it into structured formats, and enables **AI-powered question answering (QA)** by allowing an intelligent agent to **choose between symbolic (Cypher) and semantic (vector) search based on the user's query**.
 
 Figure 2 illustrates the structure of the generated knowledge graph, where nodes such as Author, Database, Related Keywords, Publication Year, and Citation are shared across multiple publications, **forming rich interconnections between articles**.
 
