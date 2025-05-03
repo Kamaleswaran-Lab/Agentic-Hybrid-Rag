@@ -8,7 +8,7 @@ This project presents a **fully open-source, Python-based pipeline for automatic
 
 The system collects bibliometric data from **PubMed, arXiv, and Google Scholar**, processes it into structured formats, and enables **AI-powered question answering (QA)** by allowing an intelligent agent to **choose between symbolic (Cypher) and semantic (vector) search based on the user's query**.
 
-Figure 2 illustrates the structure of the generated KG, where nodes such as Author, Database, Related Keywords, Publication Year, and Citation are shared across multiple publications, **forming rich interconnections between articles**.
+Building on that, Figure 2 illustrates the structure of the generated KG, where nodes such as Author, Database, Related Keywords, Publication Year, and Citation are shared across multiple publications, **forming rich interconnections between articles**.
 
 ![KG](assets/kg.png) 
 *Figure 2: Knowledge Graph Schematic Model.*
