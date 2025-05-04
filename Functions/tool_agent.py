@@ -9,8 +9,8 @@ from Functions.tool import Tool, validate_arguments
 from Functions.completions import build_prompt_structure, ChatHistory, completions_create, update_chat_history
 from Functions.extraction import extract_tag_content
 
-
-os.environ["GROQ_API_KEY"] = "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"
+groq_api_key = os.getenv("GROQ_API_KEY")
+os.environ["GROQ_API_KEY"] = groq_api_key
 
 
 TOOL_SYSTEM_PROMPT = """
@@ -228,14 +228,25 @@ class ToolAgent:
 
         if tool_calls.found:
             observations = self.process_tool_calls(tool_calls.content)
+
+            first_result = next(iter(observations.values()))
+
+            first_result = json.loads(first_result)
+
+            tool_observations = first_result.get("Answer")
+            context = first_result.get("Context")
+
             update_chat_history(
-                agent_chat_history, f'f"Observation: {observations}"', "user"
+                agent_chat_history, f"Observation: {context}", "user"
             )
 
-        return {
-            "final_response": completions_create(self.client, agent_chat_history, self.model),
-            "agent_reasoning": agent_reasoning,
-            "tool_call": tool_calls.content[0] if tool_calls.found else None
-        }
+        else:
+            tool_observations = None
+            context = None
 
-        #return completions_create(self.client, agent_chat_history, self.model)
+        return {
+            "final_response": tool_observations,
+            "agent_reasoning": agent_reasoning,
+            "tool_call": tool_calls.content[0] if tool_calls.found else None,
+            "context": context
+        }

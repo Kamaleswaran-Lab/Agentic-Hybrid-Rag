@@ -50,7 +50,7 @@ def create_chunks():
     print("text_splits was created with success!")
 
     # Initialize the embedding model to generate vector representations
-    embedding = OllamaEmbeddings(model="llama3")
+    embedding = OllamaEmbeddings(model="mistral")
 
     # Create a FAISS index from the text chunks using the embeddings
     index = FAISS.from_documents(text_splits, embedding=embedding)

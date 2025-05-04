@@ -1,6 +1,7 @@
 import warnings
 import os
 
+from dotenv import load_dotenv
 from Functions.search_papers import search_papers
 from Functions.select_papers import select_papers
 from Functions.auxiliary import get_validated_input, clean_folder
@@ -9,7 +10,6 @@ from Functions.extract_info import get_citations
 from Functions.create_graph import create_knowledge_graph
 from Functions.perform_rag import agent_rag
 from Functions.create_vector import create_chunks
-from Functions.evaluation import generate_testset, evaluate_agent
 
 
 def main():
@@ -17,6 +17,9 @@ def main():
     # Deactivate warnings
     warnings.filterwarnings("ignore")
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+    # load environment variables
+    load_dotenv()
 
     # remove papers from last query
     clean_folder("Papers")
@@ -51,14 +54,8 @@ def main():
     # create vector space
     create_chunks()
 
-    # create testset
-    testset = generate_testset()
-
     # create agent
     agent = agent_rag()
-
-    # Evaluate agent
-    evaluate_agent(testset, agent)
 
     while True:
         query = input("Enter your question (or 'exit' to quit): ").strip()

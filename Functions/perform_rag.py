@@ -1,13 +1,17 @@
 import json
+import os
+import pickle
 
 from Functions.functions import cypher_search, similarity_search
 from Functions.tool import tool
 from Functions.tool_agent import ToolAgent
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain_community.vectorstores import Neo4jVector
-from langchain_community.vectorstores.neo4j_vector import remove_lucene_chars
-from langchain_neo4j import Neo4jGraph
-from groq import Groq
+from langchain.retrievers import EnsembleRetriever
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain_cohere import CohereRerank
+from langchain_community.retrievers import BM25Retriever
+from langchain_community.vectorstores import FAISS
 
 
 def agent_rag():
@@ -39,26 +43,62 @@ def agent_rag():
 
 def baseline_RAG(question):
     # Get credentials
-    uri = "neo4j+s://91f991ec.databases.neo4j.io"
-    username = "neo4j"
-    password = "COeHGYRiC2H4YzRFer_o11lHQDEsuBBfr8Ules7G1PQ"
+    uri = os.getenv("KG_URI")
+    username = os.getenv("KG_USERNAME")
+    password = os.getenv("KG_PASSWORD")
 
-    embedding_model = OllamaEmbeddings(model="llama3")
+    llm = OllamaLLM(model="mistral")
 
-    llm = OllamaLLM(model="llama3")
+    with open("Database/text_splits.pkl", "rb") as f:
+        text_splits = pickle.load(f)
 
-    vs_answer = similarity_search(question)
+    # Initialize a keyword-based retriever using BM25
+    keyword_retriever = BM25Retriever.from_documents(text_splits)
+    keyword_retriever.k = 5  # Retrieve top 5 most relevant documents
 
-    # Safely extract the Answer from the JSON response
-    retrieved_context = json.loads(vs_answer)
+    # Initialize embedding model for vector similarity search
+    embedding = OllamaEmbeddings(model="mistral")
 
-    # Treat context as a single retrieved chunk
-    vs_context = retrieved_context["Answer"]
+    # Load the FAISS vector index from local storage
+    vectorstore = FAISS.load_local("Database/faiss_index", embedding, allow_dangerous_deserialization=True)
+
+    # Create a retriever using FAISS with top-5 search
+    vector_retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+
+    # Combine both retrievers with equal weight
+    ensemble_retriever = EnsembleRetriever(
+        retrievers=[vector_retriever, keyword_retriever],
+        weights=[0.5, 0.5]
+    )
+
+    # Set API key for Cohere's reranker model
+
+    cohere_api_key = os.getenv("COHERE_API_KEY")
+    
+    os.environ["COHERE_API_KEY"] = cohere_api_key
+
+    # Apply Cohere's reranking model to compress and filter context
+    compressor = CohereRerank(model="rerank-english-v3.0")
+    compression_retriever = ContextualCompressionRetriever(
+        base_compressor=compressor,
+        base_retriever=ensemble_retriever
+    )
+
+    # Retrieve the most relevant context for the input question
+    context = compression_retriever.invoke(question)
+
+    vs_context = [
+        {
+            "source": doc.metadata.get('source', 'unknown'),
+            "content": doc.page_content
+        }
+        for doc in context
+    ]
 
     print(f"Vs context: {vs_context}")
 
     kg_index = Neo4jVector.from_existing_graph(
-        embedding_model,
+        embedding,
         search_type="hybrid",
         url=uri,
         username=username,
@@ -75,8 +115,10 @@ def baseline_RAG(question):
 
     print(f"kg data: {kg_data}")
 
+    final_context = vs_context + kg_data
+
     kg_prompt = f"""Provide a concise answer to the question based only on the given context.
-            If the context is not related to the question, state that you cannot answer the question. 
+            If the context is not related to the question, just output 'no comment'. No extra text.
             The question and context are provided within the xml tags.
             <question> 
             {question}
@@ -89,40 +131,24 @@ def baseline_RAG(question):
             Answer:
             """
 
-    kg_context = llm.invoke(kg_prompt)
+    #kg_context = llm.invoke(kg_prompt)
 
-    print(f"kg context: {kg_context}")
+    print(f"kg context: {kg_data}")
 
-    RAG_PROMPT = f"""Provide a concise answer to the question based only on the given context. 
-                You will receive the responses of both a vector store and a knowlegde graph search as context.
-                Interpret them carefully to extract insights that best answer the question.
-                If the context is not related to the question, state that you cannot answer the question. 
-                The question and responses for both strategies are provided within the xml tags.
-                
-                <question> 
-                {question}
-                </question>
-                <response_vector_store>
-                {vs_context}
-                </response_vector_store>
-                <response_knowledge_graph>
-                {kg_context}
-                </response_knowledge_graph>
-                
-                Just answer the question. Do not add any information that is not related to the question. Do not deviate from the specified format.
-                Answer:
-                """
-
-    client = Groq(api_key="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")
-
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "user", "content": RAG_PROMPT}
-        ]
-    )
-
-    final_context = [vs_context, kg_context]
-    final_answer = response.choices[0].message.content
+    RAG_PROMPT = f"""Provide a concise answer to the question based only on the given context.
+        If the context is not related to the question, state that you cannot answer the question. 
+        The question and context are provided within the xml tags.
+        <question> 
+        {question}
+        </question>
+        <context>
+        {final_context}
+        </context>
+        
+        Just answer the question. Do not add any information that is not related to the question. Do not deviate from the specified format.
+        Answer:
+        """
+    final_answer = llm.invoke(RAG_PROMPT)
+    final_answer = final_answer.replace(r"\n", "")
 
     return final_context, final_answer

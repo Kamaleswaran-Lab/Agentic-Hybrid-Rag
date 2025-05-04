@@ -36,9 +36,9 @@ def cypher_search(question: str):
     llm = OllamaLLM(model="mistral")
 
     # Connection credentials for the Neo4j database
-    uri = "neo4j+s://91f991ec.databases.neo4j.io"
-    username = "neo4j"
-    password = "COeHGYRiC2H4YzRFer_o11lHQDEsuBBfr8Ules7G1PQ"
+    uri = os.getenv("KG_URI")
+    username = os.getenv("KG_USERNAME")
+    password = os.getenv("KG_PASSWORD")
 
     # Connect to the Neo4j graph database
     graph = Neo4jGraph(
@@ -141,7 +141,10 @@ def cypher_search(question: str):
 
         user_question: which authors have published in the database 'IEEE Xplore'
         Cypher query: MATCH (p:paper)-[:indexed_at]->(d:database), (p)-[:authored_by]->(a:author) WHERE d.database = 'IEEE Xplore' RETURN DISTINCT a.author as authors
-
+        
+        user_question: amount of papers published in 2024
+        Cypher query: MATCH (p:paper)-[:PUBLISHED_IN]->(y:year) WHERE y.year = '2024' RETURN count(p) AS papers_published_in_2024
+        
     <user_question>
     {question}
     </user_question>
@@ -192,7 +195,7 @@ def cypher_search(question: str):
     Answer:"""
 
     # Return the final answer as a JSON string
-    return json.dumps({"Answer": llm.invoke(prompt)})
+    return json.dumps({"Answer": llm.invoke(prompt), "Context": [f"{result}"]})
 
 
 def similarity_search(question: str):
@@ -222,7 +225,7 @@ def similarity_search(question: str):
     keyword_retriever.k = 5  # Retrieve top 5 most relevant documents
 
     # Initialize embedding model for vector similarity search
-    embedding = OllamaEmbeddings(model="llama3")
+    embedding = OllamaEmbeddings(model="mistral")
 
     # Load the FAISS vector index from local storage
     vectorstore = FAISS.load_local("Database/faiss_index", embedding, allow_dangerous_deserialization=True)
@@ -237,7 +240,10 @@ def similarity_search(question: str):
     )
 
     # Set API key for Cohere's reranker model
-    os.environ["COHERE_API_KEY"] = "Ni2SuJm5hKdJict4OAblCsQ3l08tA3AYZwbQa2CL"
+
+    cohere_api = os.getenv("COHERE_API_KEY")
+    
+    os.environ["COHERE_API_KEY"] = cohere_api
 
     # Apply Cohere's reranking model to compress and filter context
     compressor = CohereRerank(model="rerank-english-v3.0")
@@ -272,8 +278,10 @@ def similarity_search(question: str):
         <context>
         {context}
         </context>
+        
+        Just answer the question. Do not add any information that is not related to the question. Do not deviate from the specified format.
         Answer:
         """
 
     # Return the final answer as a JSON string
-    return json.dumps({"Answer": llm.invoke(prompt)})
+    return json.dumps({"Answer": llm.invoke(prompt), "Context": context})

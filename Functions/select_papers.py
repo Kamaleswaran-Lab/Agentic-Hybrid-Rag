@@ -22,7 +22,7 @@ def compute_cosine_similarity(query, text):
     processed_query = extract_keywords_query(query)
 
     # Initialize Ollama Embeddings
-    embedding_model = OllamaEmbeddings(model="llama3")
+    embedding_model = OllamaEmbeddings(model="mistral")
 
     # Get embeddings for both the processed query and the target text
     embeddings = embedding_model.embed_documents([processed_query, text])
