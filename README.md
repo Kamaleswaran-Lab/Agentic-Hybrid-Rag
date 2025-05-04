@@ -46,5 +46,42 @@
 
 ### Using Docker
 1. Clone the repository:  
-   ```bash
-   git clone https://github.com/Kamaleswaran-Lab/Agentic-Hybrid-Rag.git
+  ```bash
+    git clone https://github.com/Kamaleswaran-Lab/Agentic-Hybrid-Rag.git
+```
+
+2. Build the Docker image:
+  ```bash
+    docker build -t agentic-rag:latest .
+  ```
+
+3. Run the container (adjust ports & volumes as needed):
+
+```bash
+  docker run -d \
+    --name agentic-rag \
+    -p 7474:7474 \          # Neo4j Browser
+    -p 7687:7687 \          # Neo4j Bolt
+    -p 5000:5000 \          # Agent HTTP API
+    -v $(pwd)/data:/app/data \
+    agentic-rag:latest
+```
+
+Access:
+Neo4j Browser: http://localhost:7474
+Agent API / UI: http://localhost:5000
+
+### Using Python Virtualenv
+Clone the repository and enter directory.
+Create and activate a virtual environment:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### Install Python dependencies:
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+Ensure Neo4j is running locally or remotely, and update config.yml accordingly.
