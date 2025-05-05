@@ -33,6 +33,13 @@ The top-ranked passages are then forwarded to the language model, which uses the
 
 The **integration of knowledge graphs and vector-based** storage, mediated by natural language agents, provides a **robust and flexible approach** for automated knowledge extraction from scientific literature. The proposed pipeline demonstrates how complementary retrieval mechanisms — structured via Cypher and semantic via embeddings — can be intelligently orchestrated by an agent to generate **more accurate and contextually enriched responses**. By enabling analytical and descriptive queries about publications, authors, and citation patterns, this hybrid architecture **enhances bibliometric exploration and insight generation**, contributing to the development of more transparent, efficient, and interpretable tools in support of scientific research.
 
+
+![VS](assets/model_comparison.png) 
+*Figure 5: Model Comparison.*
+
+Metrics comparison between the baseline model, the proposed agentic framework and an enhanced fine-tuned agentic version using DPO. The Instruction-Tuned Agent with Direct Preference Optimization (DPO) delivered substantial gains over the non-agentic baseline: a +0.63 increase in VS Context Recall and a +0.56 increase in overall Context Precision, alongside improvements of +0.24 in VS Faithfulness, +0.12 in both VS Precision and KG Answer Relevance, +0.11 in overall Faithfulness, +0.05 in KG Context Recall, and +0.04 in both VS Answer Relevance and overall Precision.
+
+
 ## Table of Contents
 - [Features](#features)  
 - [Prerequisites](#prerequisites)  
