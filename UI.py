@@ -48,8 +48,11 @@ session_id = st.session_state.id
 # Initialize storage for the DataFrame
 if "results_df" not in st.session_state:
     st.session_state.results_df = pd.DataFrame()
+    st.session_state.graph = None
     st.session_state.tempdir = None
     st.session_state.tempdirname = None
+    st.session_state.index = None
+    st.session_state.splits = None
 
 # Initialize session state variable
 if "search" not in st.session_state:
@@ -58,16 +61,18 @@ if "search" not in st.session_state:
 # Initialize authentication state if it doesn't exist
 if "auth_success" not in st.session_state:
     st.session_state.auth_success = False
-    st.session_state.graph = None
-    st.session_state.cohere = None
-
+    
 # Initialize authentication state if it doesn't exist
 if "neo_uri" not in st.session_state:
-    st.session_state.neo_uri = os.getenv("")
-    st.session_state.neo_username = None
-    st.session_state.neo_password = None
-    st.session_state.index = None
-    st.session_state.splits = None
+    st.session_state.neo_uri = os.getenv("KG_URI")
+    st.session_state.neo_username = os.getenv("KG_USERNAME")
+    st.session_state.neo_password = os.getenv("KG_PASSWORD")
+    st.session_state.cohere = os.getenv("COHERE_API_KEY")
+    st.session_state.groq = os.getenv("GROQ_API_KEY")
+
+    # set environment
+    os.environ["GROQ_API_KEY"] = st.session_state.groq
+    os.environ["COHERE_API_KEY"] = st.session_state.cohere
 
 
 @st.cache_resource
@@ -327,72 +332,6 @@ def create_chunks_st(tempfolder_path):
     return text_splits, index
 
 
-@st.dialog("Provide Neo4j Aura account")
-def get_account():
-    """Get necessary credentials to run the agent"""
-
-    st.markdown("Don't have it yet? [Create an account](https://neo4j.com/product/auradb/)", unsafe_allow_html=True)
-
-    # Neo4j credentials
-    uri = st.text_input("URI").strip()
-    username = st.text_input("Username").strip()
-    password = st.text_input("Password", type="password").strip()
-
-    # Cohere credentials
-    st.markdown("Please also provide a Cohere API key. [Create an account if needed](https://dashboard.cohere.com/welcome/login)", unsafe_allow_html=True)
-    cohere_api = st.text_input("Cohere API KEY").strip()
-
-    if st.button("Authenticate"):
-        if not uri or not username or not password or not cohere_api:
-            st.warning("Please fill in all fields.")
-        else:
-
-            with st.spinner("Checking connection..."):
-                try:
-                    # check neo4j instance
-                    graph = Graph(uri, auth=(username, password))
-                    graph.run("RETURN 1")  # Test query to verify auth
-
-                    # check cohere
-                    co = cohere.Client(cohere_api)
-
-                    response = co.generate(
-                        model='command',
-                        prompt='Hello, Cohere!',
-                        max_tokens=10
-                    )
-
-                    st.success("Authentication successful.")
-                    st.session_state.auth_success = True
-                    st.session_state.neo_uri = uri
-                    st.session_state.neo_username = username
-                    st.session_state.neo_password = password
-                    st.session_state.cohere = cohere_api
-
-                # If not successful
-                except:
-                    st.session_state.auth_success = False
-                    st.warning("Failed authentication. Please check your credentials")
-
-    # Show "Start agent" button only if authentication succeeded
-    if st.session_state.auth_success:
-        if st.button("Start agent"):
-            with st.spinner("Creating permanent knowledge (this may take a while)..."):
-
-                # Create knowledge graph
-                create_knowledge_graph_st(st.session_state.results_df, st.session_state.neo_uri, st.session_state.neo_username, st.session_state.neo_password)
-
-                # Create vector space
-                splits, index = create_chunks_st(st.session_state.tempdirname)
-
-                # Save results in cache
-                st.session_state.index = index
-                st.session_state.splits = splits
-
-                st.success("All set! You may now chat with your personalized agent")
-                st.rerun()
-
-
 def cypher_search_st(question: str):
     """
     Answers a natural language question by converting it into a Cypher query and querying a Neo4j graph database. Usage includes inquiries about publication year, number of papers,
@@ -609,9 +548,6 @@ def similarity_search_st(question: str):
         weights=[0.5, 0.5]
     )
 
-    # Set API key for Cohere's reranker model
-    os.environ["COHERE_API_KEY"] = st.session_state.cohere
-
     # Apply Cohere's reranking model to compress and filter context
     compressor = CohereRerank(model="rerank-english-v3.0")
     compression_retriever = ContextualCompressionRetriever(
@@ -669,8 +605,6 @@ def agent_rag_st():
     Returns:
     - ToolAgent: An agent instance capable of performing tool-augmented question answering.
     """
-
-    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
     # Convert the cypher and similarity retrieval functions into usable tools for the agent
     cypher_tool = tool(cypher_search_st)
@@ -820,7 +754,7 @@ with st.sidebar:
             path = Path(st.session_state.tempdirname)
             p = len(list(path.glob('*.pdf')))
             if p > 0:
-                if right.button("Start chatting"):
+                if right.button("Start agent"):
                     with st.spinner("Creating permanent knowledge (this may take a while)..."):
 
                         # Create knowledge graph
