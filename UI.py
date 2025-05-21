@@ -63,7 +63,7 @@ if "auth_success" not in st.session_state:
 
 # Initialize authentication state if it doesn't exist
 if "neo_uri" not in st.session_state:
-    st.session_state.neo_uri = None
+    st.session_state.neo_uri = os.getenv("")
     st.session_state.neo_username = None
     st.session_state.neo_password = None
     st.session_state.index = None
@@ -670,7 +670,7 @@ def agent_rag_st():
     - ToolAgent: An agent instance capable of performing tool-augmented question answering.
     """
 
-    os.environ["GROQ_API_KEY"] = ""
+    os.environ["GROQ_API_KEY"] = os.getenv("GROQ_API_KEY")
 
     # Convert the cypher and similarity retrieval functions into usable tools for the agent
     cypher_tool = tool(cypher_search_st)
@@ -779,8 +779,6 @@ def perform_search():
                 st.session_state.results_df = papers
                 st.session_state.tempdir = tempdir
                 st.session_state.tempdirname = temp_name
-                #path = Path(tempdirname)
-                #st.session_state.results_df = papers
                 st.success(f"{p} relevant papers were found")
                 return
 
@@ -823,7 +821,20 @@ with st.sidebar:
             p = len(list(path.glob('*.pdf')))
             if p > 0:
                 if right.button("Start chatting"):
-                    get_account()
+                    with st.spinner("Creating permanent knowledge (this may take a while)..."):
+
+                        # Create knowledge graph
+                        create_knowledge_graph_st(st.session_state.results_df, st.session_state.neo_uri, st.session_state.neo_username, st.session_state.neo_password)
+
+                        # Create vector space
+                        splits, index = create_chunks_st(st.session_state.tempdirname)
+
+                        # Save results in cache
+                        st.session_state.index = index
+                        st.session_state.splits = splits
+
+                        st.success("All set! You may now chat with your personalized agent")
+                        st.rerun()
 
             # display PDFs preview
             titles = list(path.glob('*.pdf'))
