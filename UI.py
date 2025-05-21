@@ -33,9 +33,6 @@ from Functions.auxiliary import sanitize_filename
 from metapub import FindIt
 
 
-# password: a1txoSKmulZil9ZsI-UWNmOeF0kTv_m2sY-2rNieDDM
-#uri: neo4j+s://b1162482.databases.neo4j.io
-# cohere: Ni2SuJm5hKdJict4OAblCsQ3l08tA3AYZwbQa2CL
 # ---------------------------------------
 # Streamlit App
 # ---------------------------------------
@@ -176,7 +173,6 @@ def create_knowledge_graph_st(papers, uri, username, password):
         if year:
             info = str(year).strip()
             graph.merge(Node("year", year=info), "year", "year")
-            #graph.merge(Node("year", year=info), "year", "year")
 
 
     # Create nodes for databases
@@ -247,7 +243,7 @@ def create_knowledge_graph_st(papers, uri, username, password):
         # Link the paper to its authors
         if isinstance(authors, str):
             # Convert string into a list
-            authors = ast.literal_eval(authors) # Convert string into a list
+            authors = ast.literal_eval(authors)
 
         for author in authors:
             if author:
@@ -259,7 +255,7 @@ def create_knowledge_graph_st(papers, uri, username, password):
         if "References" in papers.columns:
             if isinstance(references, str):
                 # Convert string into a list
-                references = ast.literal_eval(references)  # Convert string into a list
+                references = ast.literal_eval(references)
 
             for reference in references:
                 if reference:
@@ -290,9 +286,7 @@ def is_valid_pdf(filepath: str) -> bool:
 
 
 def create_chunks_st(tempfolder_path):
-    """
-    Loads all valid PDF files from a folder, splits text, creates embeddings and a FAISS index.
-    """
+    """Loads all valid PDF files from a folder, splits text, creates embeddings and a FAISS index."""
 
     docs = []
 
@@ -676,7 +670,7 @@ def agent_rag_st():
     - ToolAgent: An agent instance capable of performing tool-augmented question answering.
     """
 
-    os.environ["GROQ_API_KEY"] = "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"
+    os.environ["GROQ_API_KEY"] = ""
 
     # Convert the cypher and similarity retrieval functions into usable tools for the agent
     cypher_tool = tool(cypher_search_st)
