@@ -124,7 +124,7 @@ neo4j-graphrag==1.5.0
 nest-asyncio==1.6.0
 networkx==3.2.1
 nltk==3.9.1
-numpy==2.0.2
+numpy==1.26.4
 olefile==0.47
 ollama==0.4.7
 onnx==1.17.0
@@ -213,8 +213,7 @@ tenacity==9.0.0
 tensorboard==2.18.0
 tensorboard-data-server==0.7.2
 tensorflow==2.18.0
-tensorflow-io-gcs-filesystem==0.31.0
-tensorflow_intel==2.18.0
+tensorflow-io-gcs-filesystem==0.37.1
 termcolor==2.5.0
 tf_keras==2.18.0
 thinc==8.3.4

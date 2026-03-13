@@ -22,7 +22,7 @@ def create_chunks():
     - None (saves processed chunks and vector store to disk).
     """
     # Load the documents from the PDF files
-    docs = load_and_clean_pdfs(folder_path)
+    docs = load_and_clean_pdfs("Papers")
 
     # Initialize a text splitter to divide the documents into chunks
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=2024, chunk_overlap=50)
