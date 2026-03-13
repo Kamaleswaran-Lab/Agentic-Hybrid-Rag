@@ -243,8 +243,8 @@ def similarity_search(question: str):
     # Set API key for Cohere's reranker model
 
     cohere_api = os.getenv("COHERE_API_KEY")
-    
-    os.environ["COHERE_API_KEY"] = cohere_api
+    if cohere_api:
+        os.environ["COHERE_API_KEY"] = cohere_api
 
     # Apply Cohere's reranking model to compress and filter context
     compressor = CohereRerank(model="rerank-english-v3.0")

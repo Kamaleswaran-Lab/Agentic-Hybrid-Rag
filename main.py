@@ -62,9 +62,13 @@ def main():
         if query.lower() == 'exit':
             break
         try:
-            response = agent.run(user_msg=query)["final_response"]
+            result = agent.run(user_msg=query)
+            response = result["final_response"]
 
-            print(response)
+            if response:
+                print(response)
+            else:
+                print("No answer was found. Try asking a more specific question about the papers.")
         except Exception as e:
             print(f"Error processing query: {str(e)}")
 
