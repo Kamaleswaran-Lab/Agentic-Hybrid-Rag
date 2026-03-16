@@ -69,9 +69,10 @@ if "neo_uri" not in st.session_state:
     st.session_state.cohere = os.getenv("COHERE_API_KEY")
     st.session_state.groq = os.getenv("GROQ_API_KEY")
 
-    # set environment
-    os.environ["GROQ_API_KEY"] = st.session_state.groq
-    os.environ["COHERE_API_KEY"] = st.session_state.cohere
+    if st.session_state.groq:
+        os.environ["GROQ_API_KEY"] = st.session_state.groq
+    if st.session_state.cohere:
+        os.environ["COHERE_API_KEY"] = st.session_state.cohere
 
 
 @st.cache_resource
@@ -267,11 +268,7 @@ def create_knowledge_graph_st(papers, uri, username, password):
                     if reference_node:
                         graph.merge(Relationship(paper, "cites", reference_node))
 
-    # Refresh all nodes
-    graph.run("MATCH (n) SET n = n RETURN count(n);")
-
-    # Refresh all relationships
-    graph.run("MATCH ()-[r]->() SET r = r RETURN count(r);")
+    
 
     print("Graph created with success!")
 
@@ -305,7 +302,7 @@ def create_chunks_st(tempfolder_path):
             continue
 
         try:
-            docs = load_and_clean_pdfs(folder_path)
+            docs = load_and_clean_pdfs(tempfolder_path)
         except Exception as e:
             print(f"Error loading: {e}")
 

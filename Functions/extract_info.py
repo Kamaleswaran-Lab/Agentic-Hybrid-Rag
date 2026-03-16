@@ -131,7 +131,7 @@ def get_citations(papers, folder_name="Papers"):
     cwd = os.getcwd()
 
     # Define the full path to the folder where the papers are stored
-    path = Path(rf"{cwd}\\{folder_name}")
+    path = Path(cwd) / folder_name
 
     # List all PDF files in the folder (ignoring subdirectories)
     documents = [f.name for f in path.iterdir() if f.is_file() and f.suffix.lower() == '.pdf']
@@ -144,8 +144,11 @@ def get_citations(papers, folder_name="Papers"):
     # Loop over each document (PDF) in the folder
     for document in tqdm(documents, desc="Extracting references", unit="document"):
 
-        # Extract text from each section of the paper
-        text_by_section = extract_text_by_section(rf"{path}\\{document}")
+        try:
+            text_by_section = extract_text_by_section(path / document)
+        except Exception as e:
+            print(f"Skipping {document}: could not read PDF ({e})")
+            continue
 
         ref_count = 0
 
@@ -155,8 +158,9 @@ def get_citations(papers, folder_name="Papers"):
 
                 references = extract_dois(v)
 
-                # Update the "References" column in the DataFrame for the corresponding paper title
-                papers.at[papers[papers["Title_sanitized"] == document.split(".")[0]].index[0], "References"] = references
+                matching = papers[papers["Title_sanitized"] == document.split(".")[0]]
+                if not matching.empty:
+                    papers.at[matching.index[0], "References"] = references
 
                 ref_count = len(references)
 

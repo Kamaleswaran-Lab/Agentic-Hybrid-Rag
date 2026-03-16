@@ -10,7 +10,8 @@ from Functions.completions import build_prompt_structure, ChatHistory, completio
 from Functions.extraction import extract_tag_content
 
 groq_api_key = os.getenv("GROQ_API_KEY")
-os.environ["GROQ_API_KEY"] = groq_api_key
+if groq_api_key:
+    os.environ["GROQ_API_KEY"] = groq_api_key
 
 
 TOOL_SYSTEM_PROMPT = """
@@ -241,7 +242,7 @@ class ToolAgent:
             )
 
         else:
-            tool_observations = None
+            tool_observations = "I was not able to answer the question. Please try rephrasing or asking something more specific about the papers."
             context = None
 
         return {

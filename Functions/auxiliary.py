@@ -308,15 +308,17 @@ def clean_folder(path):
     - Returns None.
     """
 
-    # Iterate through all files in the given folder
+    if not os.path.exists(path):
+        os.makedirs(path)
+        return
+
     for file_name in os.listdir(path):
-        file_path = os.path.join(path, file_name)  # Get the full file path
+        file_path = os.path.join(path, file_name)
 
-        # Check if the current item is a file (not a folder)
         if os.path.isfile(file_path):
-            os.remove(file_path)  # Delete the file
+            os.remove(file_path)
 
-    return  # Function does not return anything
+    return
 
 
 def format_author_arxiv(authors):

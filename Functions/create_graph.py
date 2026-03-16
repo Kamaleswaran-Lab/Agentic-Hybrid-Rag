@@ -142,11 +142,7 @@ def create_knowledge_graph(papers):
                 if reference_node:
                     graph.merge(Relationship(paper, "cites", reference_node))
 
-    # Refresh all nodes
-    graph.run("MATCH (n) SET n = n RETURN count(n);")
-
-    # Refresh all relationships
-    graph.run("MATCH ()-[r]->() SET r = r RETURN count(r);")
+    
 
     print("Graph created with success!")
 
